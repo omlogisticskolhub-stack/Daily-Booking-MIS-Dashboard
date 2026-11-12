@@ -394,7 +394,7 @@ if uploaded_file is not None:
         if tot_cn > 0:
             dest_summary = (
                 df_filtered.groupby(dest_col)
-                .agg(CN_Count=(cn_cn, "count"))
+                .agg(CN_Count=(cn_col, "count"))
                 .reset_index()
                 .sort_values(by="CN_Count", ascending=False)
                 .head(10)
