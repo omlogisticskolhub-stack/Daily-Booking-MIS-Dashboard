@@ -98,7 +98,6 @@ st.markdown(
         font-weight: 700;
     }
 
-    /* Fix multiselect tag wrapping */
     .stMultiSelect div[data-baseweb="select"] {
         flex-wrap: wrap !important;
         height: auto !important;
@@ -280,7 +279,7 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # ==========================================
-    # 🔍 FILTERS PANEL
+    # 🔍 RE-ARRANGED FILTERS PANEL
     # ==========================================
     st.markdown("### 🔍 Filters Panel")
 
@@ -296,6 +295,7 @@ if uploaded_file is not None:
     if "branch_ms" not in st.session_state:
         st.session_state["branch_ms"] = branch_list
 
+    # Re-arranged Layout as requested
     fc1, fc2, fc3 = st.columns(3)
 
     with fc1:
@@ -310,17 +310,6 @@ if uploaded_file is not None:
         selected_destinations = st.multiselect("Filter By Destination:", options=dest_list, key="dest_ms", label_visibility="collapsed")
 
     with fc2:
-        st.markdown("🏢 **Consignee / CEE Name**")
-        def toggle_cee():
-            if st.session_state.get("all_cee", False):
-                st.session_state["cee_ms"] = cee_list
-            else:
-                st.session_state["cee_ms"] = []
-
-        st.checkbox("Select All CEE", value=True, key="all_cee", on_change=toggle_cee)
-        selected_cees = st.multiselect("Filter By CEE:", options=cee_list, key="cee_ms", label_visibility="collapsed")
-
-    with fc3:
         st.markdown("🏢 **Branch Code (CN_BRANCH_CODE)**")
         def toggle_branch():
             if st.session_state.get("all_branch", False):
@@ -331,14 +320,20 @@ if uploaded_file is not None:
         st.checkbox("Select All Branches", value=True, key="all_branch", on_change=toggle_branch)
         selected_branches = st.multiselect("Filter By Branch:", options=branch_list, key="branch_ms", label_visibility="collapsed")
 
+    with fc3:
+        st.markdown("🏢 **Consignee / CEE Name**")
+        def toggle_cee():
+            if st.session_state.get("all_cee", False):
+                st.session_state["cee_ms"] = cee_list
+            else:
+                st.session_state["cee_ms"] = []
+
+        st.checkbox("Select All CEE", value=True, key="all_cee", on_change=toggle_cee)
+        selected_cees = st.multiselect("Filter By CEE:", options=cee_list, key="cee_ms", label_visibility="collapsed")
+
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("🚛 **Transport Mode**")
         selected_modes = st.multiselect("Filter By Transport Mode:", options=mode_list, default=mode_list)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("⚡ **Delivery Status Filter**")
-        status_options = ["All Status"] + sorted(df["STATUS_CLEAN"].unique().tolist())
-        selected_status = st.selectbox("Status:", options=status_options, label_visibility="collapsed")
 
     # APPLY FILTERS
     df_filtered = df.copy()
@@ -360,13 +355,10 @@ if uploaded_file is not None:
     if mode_col and selected_modes:
         df_filtered = df_filtered[df_filtered[mode_col].astype(str).isin(selected_modes)]
 
-    if selected_status != "All Status":
-        df_filtered = df_filtered[df_filtered["STATUS_CLEAN"] == selected_status]
-
     st.markdown("---")
 
     # ==========================================
-    # 📊 TOP 5 KEY PERFORMANCE INDICATORS (KPIs)
+    # 📊 3 CLEAN KPIs (Invoice & Active Rows Removed)
     # ==========================================
     with kpi_container:
         st.markdown("### 📊 Operational Summary KPIs")
@@ -375,28 +367,25 @@ if uploaded_file is not None:
         tot_pkg = int(df_filtered["PKG_NUM"].sum())
         tot_wt_raw = df_filtered["WT_NUM"].sum()
         formatted_wt = format_weight(tot_wt_raw)
-        tot_inv = df_filtered["INV_NUM"].sum()
 
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c1, c2, c3 = st.columns(3)
         c1.metric("Total CNs (Unique)", f"{tot_cn:,}")
         c2.metric("Total Packages", f"{tot_pkg:,}")
         c3.metric("Total Weight Load", formatted_wt)
-        c4.metric("Total Invoice Value", f"₹ {tot_inv:,.2f}")
-        c5.metric("Active Filter Rows", f"{len(df_filtered):,}")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 CHARTS & ANALYTICS SECTION
+    # 📈 CHARTS SECTION (CN Count & Weight Breakouts)
     # ==========================================
     ch1, ch2 = st.columns(2)
 
     with ch1:
-        st.markdown("<div class='section-head'>📍 Top Destinations Breakdown</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-head'>📍 Top Destinations (CN Count)</div>", unsafe_allow_html=True)
         if tot_cn > 0:
             dest_summary = (
                 df_filtered.groupby(dest_col)
-                .agg(CN_Count=(cn_col, "count"), Total_Weight=("WT_NUM", "sum"))
+                .agg(CN_Count=(cn_col, "count"))
                 .reset_index()
                 .sort_values(by="CN_Count", ascending=False)
                 .head(10)
@@ -423,27 +412,33 @@ if uploaded_file is not None:
             st.info("No data available for chart.")
 
     with ch2:
-        st.markdown("<div class='section-head'>⚡ Status Distribution (Weight Wise)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-head'>⚖️ Top Destinations (Weight Breakdown)</div>", unsafe_allow_html=True)
         if tot_cn > 0:
-            status_summary = (
-                df_filtered.groupby("STATUS_CLEAN")["WT_NUM"]
-                .sum()
+            dest_wt_summary = (
+                df_filtered.groupby(dest_col)
+                .agg(Total_Weight=("WT_NUM", "sum"))
                 .reset_index()
+                .sort_values(by="Total_Weight", ascending=False)
+                .head(10)
             )
-            status_summary.columns = ["Status", "Total_Weight"]
-            fig_status = px.pie(
-                status_summary,
-                names="Status",
-                values="Total_Weight",
-                hole=0.4,
-                color_discrete_sequence=px.colors.sequential.RdBu,
+            fig_dest_wt = px.bar(
+                dest_wt_summary,
+                x="Total_Weight",
+                y=dest_col,
+                orientation="h",
+                text="Total_Weight",
+                color="Total_Weight",
+                color_continuous_scale="Blues",
             )
-            fig_status.update_layout(
+            fig_dest_wt.update_layout(
+                showlegend=False,
                 height=320,
                 margin=dict(l=0, r=0, t=10, b=0),
+                yaxis={"categoryorder": "total ascending"},
                 paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
             )
-            st.plotly_chart(fig_status, use_container_width=True)
+            st.plotly_chart(fig_dest_wt, use_container_width=True)
         else:
             st.info("No data available for chart.")
 
