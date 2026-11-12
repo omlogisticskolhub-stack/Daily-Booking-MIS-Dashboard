@@ -295,7 +295,7 @@ if uploaded_file is not None:
     if "date_ms" not in st.session_state:
         st.session_state["date_ms"] = date_list
 
-    # 2-Row Structured Filter Layout for Clean Sizing
+    # Filter Layout
     fc1, fc2, fc3 = st.columns(3)
 
     with fc1:
@@ -415,8 +415,8 @@ if uploaded_file is not None:
                 y=dest_col,
                 orientation="h",
                 text="CN_Count",
-                color="CN_Count",
-                color_continuous_scale="Reds",
+                color=dest_col,
+                color_discrete_sequence=px.colors.qualitative.Bold,
             )
             fig_dest.update_layout(
                 showlegend=False,
@@ -446,8 +446,8 @@ if uploaded_file is not None:
                 y=dest_col,
                 orientation="h",
                 text="Total_Weight",
-                color="Total_Weight",
-                color_continuous_scale="Blues",
+                color=dest_col,
+                color_discrete_sequence=px.colors.qualitative.Safe,
             )
             fig_dest_wt.update_layout(
                 showlegend=False,
@@ -464,7 +464,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 2: Zone-wise Performance (Horizontal Bars)
+    # 📈 ROW 2: Zone-wise Performance (Multi-Color Horizontal Bars)
     # ==========================================
     if zone_col and zone_col in df.columns:
         st.markdown("<div class='section-head'>🌐 Zone-wise Performance (East, West, North, South)</div>", unsafe_allow_html=True)
@@ -485,8 +485,8 @@ if uploaded_file is not None:
                     y=zone_col,
                     orientation="h",
                     text="CN_Count",
-                    color="CN_Count",
-                    color_continuous_scale="Purples",
+                    color=zone_col,
+                    color_discrete_sequence=px.colors.qualitative.Vivid,
                 )
                 fig_zone_cn.update_layout(
                     showlegend=False,
@@ -506,8 +506,8 @@ if uploaded_file is not None:
                     y=zone_col,
                     orientation="h",
                     text="Total_Weight",
-                    color="Total_Weight",
-                    color_continuous_scale="Greens",
+                    color=zone_col,
+                    color_discrete_sequence=px.colors.qualitative.Pastel,
                 )
                 fig_zone_wt.update_layout(
                     showlegend=False,
