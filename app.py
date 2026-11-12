@@ -276,7 +276,7 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # ==========================================
-    # 🔍 FILTERS PANEL
+    # 🔍 FILTERS PANEL (Zone Filter Removed)
     # ==========================================
     st.markdown("### 🔍 Filters Panel")
 
@@ -284,7 +284,6 @@ if uploaded_file is not None:
     cee_list = sorted(df[cee_col].dropna().astype(str).unique().tolist()) if cee_col else []
     mode_list = sorted(df[mode_col].dropna().astype(str).unique().tolist()) if mode_col else []
     branch_list = sorted(df[branch_col].dropna().astype(str).unique().tolist()) if branch_col else []
-    zone_list = sorted(df[zone_col].dropna().astype(str).unique().tolist()) if zone_col and zone_col in df.columns else []
 
     if "dest_ms" not in st.session_state:
         st.session_state["dest_ms"] = dest_list
@@ -292,8 +291,6 @@ if uploaded_file is not None:
         st.session_state["cee_ms"] = cee_list
     if "branch_ms" not in st.session_state:
         st.session_state["branch_ms"] = branch_list
-    if "zone_ms" not in st.session_state:
-        st.session_state["zone_ms"] = zone_list
 
     fc1, fc2, fc3 = st.columns(3)
 
@@ -318,13 +315,6 @@ if uploaded_file is not None:
 
         st.checkbox("Select All Branches", value=True, key="all_branch", on_change=toggle_branch)
         selected_branches = st.multiselect("Filter By Branch:", options=branch_list, key="branch_ms", label_visibility="collapsed")
-
-        if zone_col and zone_col in df.columns:
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("🌐 **Zone Name (FROM_ZONE_NAME)**")
-            selected_zones = st.multiselect("Filter By Zone:", options=zone_list, default=zone_list)
-        else:
-            selected_zones = []
 
     with fc3:
         st.markdown("🏢 **Consignee / CEE Name**")
@@ -358,9 +348,6 @@ if uploaded_file is not None:
     elif branch_col:
         df_filtered = df_filtered.iloc[0:0]
 
-    if zone_col and zone_col in df.columns and selected_zones:
-        df_filtered = df_filtered[df_filtered[zone_col].astype(str).isin(selected_zones)]
-
     if mode_col and selected_modes:
         df_filtered = df_filtered[df_filtered[mode_col].astype(str).isin(selected_modes)]
 
@@ -385,7 +372,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 1 CHARTS: Top Destinations (CN Count & Weight Breakdown)
+    # 📈 ROW 1: Top Destinations (CN Count & Weight Breakdown)
     # ==========================================
     ch1, ch2 = st.columns(2)
 
@@ -454,7 +441,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 2 CHARTS: Zone-wise Performance (Horizontal Bars for East, West, North, South)
+    # 📈 ROW 2: Zone-wise Performance (Horizontal Bars exactly like Destinations)
     # ==========================================
     if zone_col and zone_col in df.columns:
         st.markdown("<div class='section-head'>🌐 Zone-wise Performance (East, West, North, South)</div>", unsafe_allow_html=True)
@@ -468,6 +455,7 @@ if uploaded_file is not None:
             
             zc1, zc2 = st.columns(2)
             with zc1:
+                st.markdown("<div style='font-weight:700; margin-bottom:8px;'>CN Count by Zone</div>", unsafe_allow_html=True)
                 fig_zone_cn = px.bar(
                     zone_summary,
                     x="CN_Count",
@@ -478,10 +466,9 @@ if uploaded_file is not None:
                     color_continuous_scale="Purples",
                 )
                 fig_zone_cn.update_layout(
-                    title="CN Count by Zone",
                     showlegend=False,
-                    height=300,
-                    margin=dict(l=0, r=0, t=30, b=0),
+                    height=280,
+                    margin=dict(l=0, r=0, t=10, b=0),
                     yaxis={"categoryorder": "total ascending"},
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
@@ -489,6 +476,7 @@ if uploaded_file is not None:
                 st.plotly_chart(fig_zone_cn, use_container_width=True)
 
             with zc2:
+                st.markdown("<div style='font-weight:700; margin-bottom:8px;'>Weight Breakdown by Zone</div>", unsafe_allow_html=True)
                 fig_zone_wt = px.bar(
                     zone_summary,
                     x="Total_Weight",
@@ -499,10 +487,9 @@ if uploaded_file is not None:
                     color_continuous_scale="Greens",
                 )
                 fig_zone_wt.update_layout(
-                    title="Total Weight by Zone",
                     showlegend=False,
-                    height=300,
-                    margin=dict(l=0, r=0, t=30, b=0),
+                    height=280,
+                    margin=dict(l=0, r=0, t=10, b=0),
                     yaxis={"categoryorder": "total ascending"},
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
