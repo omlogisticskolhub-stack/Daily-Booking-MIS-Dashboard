@@ -216,7 +216,7 @@ if uploaded_file is not None:
     wt_col = next(
         (
             c
-            for c in df.columns
+            for c in df_raw.columns
             if "ACTUAL_WEIGHT" in c or "WT" in c or "WEIGHT" in c
         ),
         "ACTUAL_WEIGHT",
@@ -276,7 +276,7 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # ==========================================
-    # 🔍 FILTERS PANEL (Zone Filter Removed)
+    # 🔍 CLEAN & ORGANIZED FILTERS PANEL
     # ==========================================
     st.markdown("### 🔍 Filters Panel")
 
@@ -284,6 +284,7 @@ if uploaded_file is not None:
     cee_list = sorted(df[cee_col].dropna().astype(str).unique().tolist()) if cee_col else []
     mode_list = sorted(df[mode_col].dropna().astype(str).unique().tolist()) if mode_col else []
     branch_list = sorted(df[branch_col].dropna().astype(str).unique().tolist()) if branch_col else []
+    date_list = sorted(df["BOOKING_DAY"].dropna().unique().tolist())
 
     if "dest_ms" not in st.session_state:
         st.session_state["dest_ms"] = dest_list
@@ -291,7 +292,10 @@ if uploaded_file is not None:
         st.session_state["cee_ms"] = cee_list
     if "branch_ms" not in st.session_state:
         st.session_state["branch_ms"] = branch_list
+    if "date_ms" not in st.session_state:
+        st.session_state["date_ms"] = date_list
 
+    # 2-Row Structured Filter Layout for Clean Sizing
     fc1, fc2, fc3 = st.columns(3)
 
     with fc1:
@@ -327,7 +331,21 @@ if uploaded_file is not None:
         st.checkbox("Select All CEE", value=True, key="all_cee", on_change=toggle_cee)
         selected_cees = st.multiselect("Filter By CEE:", options=cee_list, key="cee_ms", label_visibility="collapsed")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    fc4, fc5 = st.columns(2)
+
+    with fc4:
+        st.markdown("📅 **CN Date Filter**")
+        def toggle_date():
+            if st.session_state.get("all_date", False):
+                st.session_state["date_ms"] = date_list
+            else:
+                st.session_state["date_ms"] = []
+
+        st.checkbox("Select All Dates", value=True, key="all_date", on_change=toggle_date)
+        selected_dates = st.multiselect("Filter By CN Date:", options=date_list, key="date_ms", label_visibility="collapsed")
+
+    with fc5:
         st.markdown("🚛 **Transport Mode**")
         selected_modes = st.multiselect("Filter By Transport Mode:", options=mode_list, default=mode_list)
 
@@ -346,6 +364,11 @@ if uploaded_file is not None:
     if branch_col and selected_branches:
         df_filtered = df_filtered[df_filtered[branch_col].astype(str).isin(selected_branches)]
     elif branch_col:
+        df_filtered = df_filtered.iloc[0:0]
+
+    if selected_dates:
+        df_filtered = df_filtered[df_filtered["BOOKING_DAY"].isin(selected_dates)]
+    else:
         df_filtered = df_filtered.iloc[0:0]
 
     if mode_col and selected_modes:
@@ -441,7 +464,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 2: Zone-wise Performance (Horizontal Bars exactly like Destinations)
+    # 📈 ROW 2: Zone-wise Performance (Horizontal Bars)
     # ==========================================
     if zone_col and zone_col in df.columns:
         st.markdown("<div class='section-head'>🌐 Zone-wise Performance (East, West, North, South)</div>", unsafe_allow_html=True)
