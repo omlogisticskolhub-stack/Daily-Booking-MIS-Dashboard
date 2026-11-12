@@ -239,6 +239,10 @@ if uploaded_file is not None:
         (c for c in df.columns if "TPTR_MODE" in c or "MODE" in c),
         "TPTR_MODE",
     )
+    branch_col = next(
+        (c for c in df.columns if "CN_BRANCH_CODE" in c or "BRANCH" in c),
+        "CN_BRANCH_CODE",
+    )
 
     # Date formatting
     df["BOOKING_DATE_OBJ"] = pd.to_datetime(
@@ -276,20 +280,23 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # ==========================================
-    # 🔍 FILTERS PANEL (2 WIDE COLUMNS)
+    # 🔍 FILTERS PANEL
     # ==========================================
     st.markdown("### 🔍 Filters Panel")
 
     dest_list = sorted(df[dest_col].dropna().astype(str).unique().tolist())
     cee_list = sorted(df[cee_col].dropna().astype(str).unique().tolist()) if cee_col else []
     mode_list = sorted(df[mode_col].dropna().astype(str).unique().tolist()) if mode_col else []
+    branch_list = sorted(df[branch_col].dropna().astype(str).unique().tolist()) if branch_col else []
 
     if "dest_ms" not in st.session_state:
         st.session_state["dest_ms"] = dest_list
     if "cee_ms" not in st.session_state:
         st.session_state["cee_ms"] = cee_list
+    if "branch_ms" not in st.session_state:
+        st.session_state["branch_ms"] = branch_list
 
-    fc1, fc2 = st.columns(2)
+    fc1, fc2, fc3 = st.columns(3)
 
     with fc1:
         st.markdown("📍 **Destination Name**")
@@ -302,10 +309,6 @@ if uploaded_file is not None:
         st.checkbox("Select All Destinations", value=True, key="all_dest", on_change=toggle_dest)
         selected_destinations = st.multiselect("Filter By Destination:", options=dest_list, key="dest_ms", label_visibility="collapsed")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("🚛 **Transport Mode**")
-        selected_modes = st.multiselect("Filter By Transport Mode:", options=mode_list, default=mode_list)
-
     with fc2:
         st.markdown("🏢 **Consignee / CEE Name**")
         def toggle_cee():
@@ -316,6 +319,21 @@ if uploaded_file is not None:
 
         st.checkbox("Select All CEE", value=True, key="all_cee", on_change=toggle_cee)
         selected_cees = st.multiselect("Filter By CEE:", options=cee_list, key="cee_ms", label_visibility="collapsed")
+
+    with fc3:
+        st.markdown("🏢 **Branch Code (CN_BRANCH_CODE)**")
+        def toggle_branch():
+            if st.session_state.get("all_branch", False):
+                st.session_state["branch_ms"] = branch_list
+            else:
+                st.session_state["branch_ms"] = []
+
+        st.checkbox("Select All Branches", value=True, key="all_branch", on_change=toggle_branch)
+        selected_branches = st.multiselect("Filter By Branch:", options=branch_list, key="branch_ms", label_visibility="collapsed")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("🚛 **Transport Mode**")
+        selected_modes = st.multiselect("Filter By Transport Mode:", options=mode_list, default=mode_list)
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("⚡ **Delivery Status Filter**")
@@ -332,6 +350,11 @@ if uploaded_file is not None:
     if cee_col and selected_cees:
         df_filtered = df_filtered[df_filtered[cee_col].astype(str).isin(selected_cees)]
     elif cee_col:
+        df_filtered = df_filtered.iloc[0:0]
+
+    if branch_col and selected_branches:
+        df_filtered = df_filtered[df_filtered[branch_col].astype(str).isin(selected_branches)]
+    elif branch_col:
         df_filtered = df_filtered.iloc[0:0]
 
     if mode_col and selected_modes:
@@ -400,18 +423,18 @@ if uploaded_file is not None:
             st.info("No data available for chart.")
 
     with ch2:
-        st.markdown("<div class='section-head'>⚡ Status Distribution</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-head'>⚡ Status Distribution (Weight Wise)</div>", unsafe_allow_html=True)
         if tot_cn > 0:
             status_summary = (
-                df_filtered["STATUS_CLEAN"]
-                .value_counts()
+                df_filtered.groupby("STATUS_CLEAN")["WT_NUM"]
+                .sum()
                 .reset_index()
             )
-            status_summary.columns = ["Status", "Count"]
+            status_summary.columns = ["Status", "Total_Weight"]
             fig_status = px.pie(
                 status_summary,
                 names="Status",
-                values="Count",
+                values="Total_Weight",
                 hole=0.4,
                 color_discrete_sequence=px.colors.sequential.RdBu,
             )
@@ -427,13 +450,21 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📋 MASTER DETAILS TABLE
+    # 📋 MASTER DETAILS TABLE WITH CN SEARCH
     # ==========================================
     st.markdown("<div class='section-head'>📋 Filtered Master Details Table</div>", unsafe_allow_html=True)
+
+    # CN Search Box
+    search_cn = st.text_input("🔍 Search by CN Number (Docket No):", placeholder="Enter CN No to search...")
+    
+    df_table = df_filtered.copy()
+    if search_cn.strip():
+        df_table = df_table[df_table[cn_col].astype(str).str.contains(search_cn.strip(), case=False, na=False)]
 
     display_cols = [
         c
         for c in [
+            branch_col,
             cn_col,
             date_col,
             from_col,
@@ -448,7 +479,7 @@ if uploaded_file is not None:
         if c in df.columns
     ]
 
-    master_table = df_filtered[display_cols].copy().reset_index(drop=True)
+    master_table = df_table[display_cols].copy().reset_index(drop=True)
     master_table.index = master_table.index + 1
     st.dataframe(master_table, height=350, use_container_width=True)
 
