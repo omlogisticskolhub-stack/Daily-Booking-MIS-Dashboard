@@ -242,6 +242,10 @@ if uploaded_file is not None:
         (c for c in df.columns if "CN_BRANCH_CODE" in c or "BRANCH" in c),
         "CN_BRANCH_CODE",
     )
+    zone_col = next(
+        (c for c in df.columns if "FROM_ZONE_NAME" in c or "ZONE" in c),
+        None,
+    )
 
     # Date formatting
     df["BOOKING_DATE_OBJ"] = pd.to_datetime(
@@ -268,18 +272,11 @@ if uploaded_file is not None:
         else 0.0
     )
 
-    # Status cleaning
-    df["STATUS_CLEAN"] = (
-        df[status_col].fillna("Pending / In Transit").astype(str)
-        if status_col
-        else "Pending"
-    )
-
     kpi_container = st.container()
     st.markdown("---")
 
     # ==========================================
-    # 🔍 RE-ARRANGED FILTERS PANEL
+    # 🔍 FILTERS PANEL
     # ==========================================
     st.markdown("### 🔍 Filters Panel")
 
@@ -287,6 +284,7 @@ if uploaded_file is not None:
     cee_list = sorted(df[cee_col].dropna().astype(str).unique().tolist()) if cee_col else []
     mode_list = sorted(df[mode_col].dropna().astype(str).unique().tolist()) if mode_col else []
     branch_list = sorted(df[branch_col].dropna().astype(str).unique().tolist()) if branch_col else []
+    zone_list = sorted(df[zone_col].dropna().astype(str).unique().tolist()) if zone_col and zone_col in df.columns else []
 
     if "dest_ms" not in st.session_state:
         st.session_state["dest_ms"] = dest_list
@@ -294,8 +292,9 @@ if uploaded_file is not None:
         st.session_state["cee_ms"] = cee_list
     if "branch_ms" not in st.session_state:
         st.session_state["branch_ms"] = branch_list
+    if "zone_ms" not in st.session_state:
+        st.session_state["zone_ms"] = zone_list
 
-    # Re-arranged Layout as requested
     fc1, fc2, fc3 = st.columns(3)
 
     with fc1:
@@ -319,6 +318,13 @@ if uploaded_file is not None:
 
         st.checkbox("Select All Branches", value=True, key="all_branch", on_change=toggle_branch)
         selected_branches = st.multiselect("Filter By Branch:", options=branch_list, key="branch_ms", label_visibility="collapsed")
+
+        if zone_col and zone_col in df.columns:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("🌐 **Zone Name (FROM_ZONE_NAME)**")
+            selected_zones = st.multiselect("Filter By Zone:", options=zone_list, default=zone_list)
+        else:
+            selected_zones = []
 
     with fc3:
         st.markdown("🏢 **Consignee / CEE Name**")
@@ -352,13 +358,16 @@ if uploaded_file is not None:
     elif branch_col:
         df_filtered = df_filtered.iloc[0:0]
 
+    if zone_col and zone_col in df.columns and selected_zones:
+        df_filtered = df_filtered[df_filtered[zone_col].astype(str).isin(selected_zones)]
+
     if mode_col and selected_modes:
         df_filtered = df_filtered[df_filtered[mode_col].astype(str).isin(selected_modes)]
 
     st.markdown("---")
 
     # ==========================================
-    # 📊 3 CLEAN KPIs (Invoice & Active Rows Removed)
+    # 📊 3 CLEAN KPIs
     # ==========================================
     with kpi_container:
         st.markdown("### 📊 Operational Summary KPIs")
@@ -376,7 +385,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 CHARTS SECTION (CN Count & Weight Breakouts)
+    # 📈 CHARTS SECTION (Destinations & Zone Breakdown)
     # ==========================================
     ch1, ch2 = st.columns(2)
 
@@ -412,35 +421,67 @@ if uploaded_file is not None:
             st.info("No data available for chart.")
 
     with ch2:
-        st.markdown("<div class='section-head'>⚖️ Top Destinations (Weight Breakdown)</div>", unsafe_allow_html=True)
-        if tot_cn > 0:
-            dest_wt_summary = (
-                df_filtered.groupby(dest_col)
-                .agg(Total_Weight=("WT_NUM", "sum"))
-                .reset_index()
-                .sort_values(by="Total_Weight", ascending=False)
-                .head(10)
-            )
-            fig_dest_wt = px.bar(
-                dest_wt_summary,
-                x="Total_Weight",
-                y=dest_col,
-                orientation="h",
-                text="Total_Weight",
-                color="Total_Weight",
-                color_continuous_scale="Blues",
-            )
-            fig_dest_wt.update_layout(
-                showlegend=False,
-                height=320,
-                margin=dict(l=0, r=0, t=10, b=0),
-                yaxis={"categoryorder": "total ascending"},
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-            )
-            st.plotly_chart(fig_dest_wt, use_container_width=True)
+        if zone_col and zone_col in df.columns:
+            st.markdown("<div class='section-head'>🌐 Center / Zone-wise Breakdown (East, West, South, North)</div>", unsafe_allow_html=True)
+            if tot_cn > 0:
+                zone_summary = (
+                    df_filtered.groupby([branch_col, zone_col])
+                    .agg(CN_Count=(cn_col, "count"), Total_Weight=("WT_NUM", "sum"))
+                    .reset_index()
+                )
+                zone_summary["Branch_Zone"] = zone_summary[branch_col].astype(str) + " (" + zone_summary[zone_col].astype(str) + ")"
+                zone_summary = zone_summary.sort_values(by="CN_Count", ascending=False).head(10)
+
+                fig_zone = px.bar(
+                    zone_summary,
+                    x="CN_Count",
+                    y="Branch_Zone",
+                    orientation="h",
+                    text="CN_Count",
+                    color="Total_Weight",
+                    color_continuous_scale="Viridis",
+                )
+                fig_zone.update_layout(
+                    showlegend=False,
+                    height=320,
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    yaxis={"categoryorder": "total ascending"},
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                )
+                st.plotly_chart(fig_zone, use_container_width=True)
+            else:
+                st.info("No data available for chart.")
         else:
-            st.info("No data available for chart.")
+            st.markdown("<div class='section-head'>⚖️ Top Destinations (Weight Breakdown)</div>", unsafe_allow_html=True)
+            if tot_cn > 0:
+                dest_wt_summary = (
+                    df_filtered.groupby(dest_col)
+                    .agg(Total_Weight=("WT_NUM", "sum"))
+                    .reset_index()
+                    .sort_values(by="Total_Weight", ascending=False)
+                    .head(10)
+                )
+                fig_dest_wt = px.bar(
+                    dest_wt_summary,
+                    x="Total_Weight",
+                    y=dest_col,
+                    orientation="h",
+                    text="Total_Weight",
+                    color="Total_Weight",
+                    color_continuous_scale="Blues",
+                )
+                fig_dest_wt.update_layout(
+                    showlegend=False,
+                    height=320,
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    yaxis={"categoryorder": "total ascending"},
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                )
+                st.plotly_chart(fig_dest_wt, use_container_width=True)
+            else:
+                st.info("No data available for chart.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -460,6 +501,7 @@ if uploaded_file is not None:
         c
         for c in [
             branch_col,
+            zone_col if zone_col else None,
             cn_col,
             date_col,
             from_col,
@@ -469,9 +511,8 @@ if uploaded_file is not None:
             wt_col,
             inv_col,
             mode_col,
-            status_col,
         ]
-        if c in df.columns
+        if c and c in df.columns
     ]
 
     master_table = df_table[display_cols].copy().reset_index(drop=True)
