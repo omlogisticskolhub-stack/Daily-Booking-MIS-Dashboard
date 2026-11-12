@@ -394,7 +394,7 @@ if uploaded_file is not None:
         if tot_cn > 0:
             dest_summary = (
                 df_filtered.groupby(dest_col)
-                .agg(CN_Count=(cn_col, "count"))
+                .agg(CN_Count=(cn_cn, "count"))
                 .reset_index()
                 .sort_values(by="CN_Count", ascending=False)
                 .head(10)
@@ -454,7 +454,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 2 CHARTS: Zone-wise Breakdown (East, West, North, South)
+    # 📈 ROW 2 CHARTS: Zone-wise Performance (Horizontal Bars for East, West, North, South)
     # ==========================================
     if zone_col and zone_col in df.columns:
         st.markdown("<div class='section-head'>🌐 Zone-wise Performance (East, West, North, South)</div>", unsafe_allow_html=True)
@@ -470,8 +470,9 @@ if uploaded_file is not None:
             with zc1:
                 fig_zone_cn = px.bar(
                     zone_summary,
-                    x=zone_col,
-                    y="CN_Count",
+                    x="CN_Count",
+                    y=zone_col,
+                    orientation="h",
                     text="CN_Count",
                     color="CN_Count",
                     color_continuous_scale="Purples",
@@ -481,6 +482,7 @@ if uploaded_file is not None:
                     showlegend=False,
                     height=300,
                     margin=dict(l=0, r=0, t=30, b=0),
+                    yaxis={"categoryorder": "total ascending"},
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                 )
@@ -489,8 +491,9 @@ if uploaded_file is not None:
             with zc2:
                 fig_zone_wt = px.bar(
                     zone_summary,
-                    x=zone_col,
-                    y="Total_Weight",
+                    x="Total_Weight",
+                    y=zone_col,
+                    orientation="h",
                     text="Total_Weight",
                     color="Total_Weight",
                     color_continuous_scale="Greens",
@@ -500,6 +503,7 @@ if uploaded_file is not None:
                     showlegend=False,
                     height=300,
                     margin=dict(l=0, r=0, t=30, b=0),
+                    yaxis={"categoryorder": "total ascending"},
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                 )
