@@ -385,7 +385,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 CHARTS SECTION (Destinations & Zone Breakdown)
+    # 📈 ROW 1 CHARTS: Top Destinations (CN Count & Weight Breakdown)
     # ==========================================
     ch1, ch2 = st.columns(2)
 
@@ -421,69 +421,93 @@ if uploaded_file is not None:
             st.info("No data available for chart.")
 
     with ch2:
-        if zone_col and zone_col in df.columns:
-            st.markdown("<div class='section-head'>🌐 Center / Zone-wise Breakdown (East, West, South, North)</div>", unsafe_allow_html=True)
-            if tot_cn > 0:
-                zone_summary = (
-                    df_filtered.groupby([branch_col, zone_col])
-                    .agg(CN_Count=(cn_col, "count"), Total_Weight=("WT_NUM", "sum"))
-                    .reset_index()
-                )
-                zone_summary["Branch_Zone"] = zone_summary[branch_col].astype(str) + " (" + zone_summary[zone_col].astype(str) + ")"
-                zone_summary = zone_summary.sort_values(by="CN_Count", ascending=False).head(10)
-
-                fig_zone = px.bar(
-                    zone_summary,
-                    x="CN_Count",
-                    y="Branch_Zone",
-                    orientation="h",
-                    text="CN_Count",
-                    color="Total_Weight",
-                    color_continuous_scale="Viridis",
-                )
-                fig_zone.update_layout(
-                    showlegend=False,
-                    height=320,
-                    margin=dict(l=0, r=0, t=10, b=0),
-                    yaxis={"categoryorder": "total ascending"},
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                )
-                st.plotly_chart(fig_zone, use_container_width=True)
-            else:
-                st.info("No data available for chart.")
+        st.markdown("<div class='section-head'>⚖️ Top Destinations (Weight Breakdown)</div>", unsafe_allow_html=True)
+        if tot_cn > 0:
+            dest_wt_summary = (
+                df_filtered.groupby(dest_col)
+                .agg(Total_Weight=("WT_NUM", "sum"))
+                .reset_index()
+                .sort_values(by="Total_Weight", ascending=False)
+                .head(10)
+            )
+            fig_dest_wt = px.bar(
+                dest_wt_summary,
+                x="Total_Weight",
+                y=dest_col,
+                orientation="h",
+                text="Total_Weight",
+                color="Total_Weight",
+                color_continuous_scale="Blues",
+            )
+            fig_dest_wt.update_layout(
+                showlegend=False,
+                height=320,
+                margin=dict(l=0, r=0, t=10, b=0),
+                yaxis={"categoryorder": "total ascending"},
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_dest_wt, use_container_width=True)
         else:
-            st.markdown("<div class='section-head'>⚖️ Top Destinations (Weight Breakdown)</div>", unsafe_allow_html=True)
-            if tot_cn > 0:
-                dest_wt_summary = (
-                    df_filtered.groupby(dest_col)
-                    .agg(Total_Weight=("WT_NUM", "sum"))
-                    .reset_index()
-                    .sort_values(by="Total_Weight", ascending=False)
-                    .head(10)
-                )
-                fig_dest_wt = px.bar(
-                    dest_wt_summary,
-                    x="Total_Weight",
-                    y=dest_col,
-                    orientation="h",
-                    text="Total_Weight",
-                    color="Total_Weight",
-                    color_continuous_scale="Blues",
-                )
-                fig_dest_wt.update_layout(
-                    showlegend=False,
-                    height=320,
-                    margin=dict(l=0, r=0, t=10, b=0),
-                    yaxis={"categoryorder": "total ascending"},
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                )
-                st.plotly_chart(fig_dest_wt, use_container_width=True)
-            else:
-                st.info("No data available for chart.")
+            st.info("No data available for chart.")
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # ==========================================
+    # 📈 ROW 2 CHARTS: Zone-wise Breakdown (East, West, North, South)
+    # ==========================================
+    if zone_col and zone_col in df.columns:
+        st.markdown("<div class='section-head'>🌐 Zone-wise Performance (East, West, North, South)</div>", unsafe_allow_html=True)
+        if tot_cn > 0:
+            zone_summary = (
+                df_filtered.groupby(zone_col)
+                .agg(CN_Count=(cn_col, "count"), Total_Weight=("WT_NUM", "sum"))
+                .reset_index()
+                .sort_values(by="CN_Count", ascending=False)
+            )
+            
+            zc1, zc2 = st.columns(2)
+            with zc1:
+                fig_zone_cn = px.bar(
+                    zone_summary,
+                    x=zone_col,
+                    y="CN_Count",
+                    text="CN_Count",
+                    color="CN_Count",
+                    color_continuous_scale="Purples",
+                )
+                fig_zone_cn.update_layout(
+                    title="CN Count by Zone",
+                    showlegend=False,
+                    height=300,
+                    margin=dict(l=0, r=0, t=30, b=0),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                )
+                st.plotly_chart(fig_zone_cn, use_container_width=True)
+
+            with zc2:
+                fig_zone_wt = px.bar(
+                    zone_summary,
+                    x=zone_col,
+                    y="Total_Weight",
+                    text="Total_Weight",
+                    color="Total_Weight",
+                    color_continuous_scale="Greens",
+                )
+                fig_zone_wt.update_layout(
+                    title="Total Weight by Zone",
+                    showlegend=False,
+                    height=300,
+                    margin=dict(l=0, r=0, t=30, b=0),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                )
+                st.plotly_chart(fig_zone_wt, use_container_width=True)
+        else:
+            st.info("No data available for zone charts.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
     # 📋 MASTER DETAILS TABLE WITH CN SEARCH
