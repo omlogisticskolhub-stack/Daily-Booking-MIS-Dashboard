@@ -166,6 +166,13 @@ def format_weight(kg_val):
         return f"{kg_val:.1f} KG"
 
 
+def format_chart_weight(kg_val):
+    if kg_val >= 1000:
+        return f"{kg_val / 1000:.2f} Ton"
+    else:
+        return f"{kg_val:.1f} KG"
+
+
 # ==========================================
 # FILE UPLOADER & DATA LOADING
 # ==========================================
@@ -243,13 +250,11 @@ if uploaded_file is not None:
         "CN_BRANCH_CODE",
     )
     
-    # Explicitly mapping TO_ZONE_NAME for Destination Zone performance breakdown
     zone_col = next(
         (c for c in df.columns if c == "TO_ZONE_NAME" or c == "TO_ZONE" or "TO_ZONE" in c),
         next((c for c in df.columns if "ZONE" in c), None)
     )
 
-    # Clean Zone values to ensure proper grouping across all sub-zones (East-I, North-I, etc.)
     if zone_col and zone_col in df.columns:
         df[zone_col] = df[zone_col].astype(str).str.strip().str.upper()
 
@@ -401,7 +406,7 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 1: Top Destinations (CN Count & Weight Breakdown)
+    # 📈 ROW 1: Top Destinations (CN Count & Weight Auto KG/Ton)
     # ==========================================
     ch1, ch2 = st.columns(2)
 
@@ -441,17 +446,22 @@ if uploaded_file is not None:
         if tot_cn > 0:
             dest_wt_summary = (
                 df_filtered.groupby(dest_col)
-                .agg(Total_Weight=("WT_NUM", "sum"))
+                .agg(Total_Weight_Kg=("WT_NUM", "sum"))
                 .reset_index()
-                .sort_values(by="Total_Weight", ascending=False)
+                .sort_values(by="Total_Weight_Kg", ascending=False)
                 .head(10)
             )
+            
+            # Apply dynamic formatting: >=1000 in Ton, <1000 in KG
+            dest_wt_summary["Display_Val"] = dest_wt_summary["Total_Weight_Kg"].apply(lambda x: round(x/1000, 2) if x >= 1000 else round(x, 1))
+            dest_wt_summary["Display_Text"] = dest_wt_summary.apply(lambda row: f"{row['Display_Val']} Ton" if row['Total_Weight_Kg'] >= 1000 else f"{row['Display_Val']} KG", axis=1)
+
             fig_dest_wt = px.bar(
                 dest_wt_summary,
-                x="Total_Weight",
+                x="Total_Weight_Kg",
                 y=dest_col,
                 orientation="h",
-                text="Total_Weight",
+                text=dest_wt_summary["Display_Text"],
                 color=dest_col,
                 color_discrete_sequence=px.colors.qualitative.Safe,
             )
@@ -470,17 +480,20 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 2: Zone-wise Performance (Using TO_ZONE_NAME Breakdown)
+    # 📈 ROW 2: Zone-wise Performance (Weight Auto KG/Ton)
     # ==========================================
     if zone_col and zone_col in df.columns:
         st.markdown(f"<div class='section-head'>🌐 Destination Zone-wise Performance ({zone_col})</div>", unsafe_allow_html=True)
         if tot_cn > 0:
             zone_summary = (
                 df_filtered.groupby(zone_col)
-                .agg(CN_Count=(cn_col, "count"), Total_Weight=("WT_NUM", "sum"))
+                .agg(CN_Count=(cn_col, "count"), Total_Weight_Kg=("WT_NUM", "sum"))
                 .reset_index()
                 .sort_values(by="CN_Count", ascending=False)
             )
+            
+            zone_summary["Display_Val"] = zone_summary["Total_Weight_Kg"].apply(lambda x: round(x/1000, 2) if x >= 1000 else round(x, 1))
+            zone_summary["Display_Text"] = zone_summary.apply(lambda row: f"{row['Display_Val']} Ton" if row['Total_Weight_Kg'] >= 1000 else f"{row['Display_Val']} KG", axis=1)
             
             zc1, zc2 = st.columns(2)
             with zc1:
@@ -508,10 +521,10 @@ if uploaded_file is not None:
                 st.markdown("<div style='font-weight:700; margin-bottom:8px;'>Weight Breakdown by Destination Zone</div>", unsafe_allow_html=True)
                 fig_zone_wt = px.bar(
                     zone_summary,
-                    x="Total_Weight",
+                    x="Total_Weight_Kg",
                     y=zone_col,
                     orientation="h",
-                    text="Total_Weight",
+                    text=zone_summary["Display_Text"],
                     color=zone_col,
                     color_discrete_sequence=px.colors.qualitative.Pastel,
                 )
