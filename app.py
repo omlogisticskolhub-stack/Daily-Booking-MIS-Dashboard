@@ -242,12 +242,14 @@ if uploaded_file is not None:
         (c for c in df.columns if "CN_BRANCH_CODE" in c or "BRANCH" in c),
         "CN_BRANCH_CODE",
     )
+    
+    # Explicitly mapping TO_ZONE_NAME for Destination Zone performance breakdown
     zone_col = next(
-        (c for c in df.columns if "FROM_ZONE_NAME" in c or "ZONE" in c),
-        None,
+        (c for c in df.columns if c == "TO_ZONE_NAME" or c == "TO_ZONE" or "TO_ZONE" in c),
+        next((c for c in df.columns if "ZONE" in c), None)
     )
 
-    # Clean Zone values to ensure proper grouping without spacing/case issues
+    # Clean Zone values to ensure proper grouping across all sub-zones (East-I, North-I, etc.)
     if zone_col and zone_col in df.columns:
         df[zone_col] = df[zone_col].astype(str).str.strip().str.upper()
 
@@ -468,10 +470,10 @@ if uploaded_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 ROW 2: Zone-wise Performance (Multi-Color Horizontal Bars)
+    # 📈 ROW 2: Zone-wise Performance (Using TO_ZONE_NAME Breakdown)
     # ==========================================
     if zone_col and zone_col in df.columns:
-        st.markdown("<div class='section-head'>🌐 Zone-wise Performance (East, West, North, South)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='section-head'>🌐 Destination Zone-wise Performance ({zone_col})</div>", unsafe_allow_html=True)
         if tot_cn > 0:
             zone_summary = (
                 df_filtered.groupby(zone_col)
@@ -482,7 +484,7 @@ if uploaded_file is not None:
             
             zc1, zc2 = st.columns(2)
             with zc1:
-                st.markdown("<div style='font-weight:700; margin-bottom:8px;'>CN Count by Zone</div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-weight:700; margin-bottom:8px;'>CN Count by Destination Zone</div>", unsafe_allow_html=True)
                 fig_zone_cn = px.bar(
                     zone_summary,
                     x="CN_Count",
@@ -494,7 +496,7 @@ if uploaded_file is not None:
                 )
                 fig_zone_cn.update_layout(
                     showlegend=False,
-                    height=280,
+                    height=320,
                     margin=dict(l=0, r=0, t=10, b=0),
                     yaxis={"categoryorder": "total ascending"},
                     paper_bgcolor="rgba(0,0,0,0)",
@@ -503,7 +505,7 @@ if uploaded_file is not None:
                 st.plotly_chart(fig_zone_cn, use_container_width=True)
 
             with zc2:
-                st.markdown("<div style='font-weight:700; margin-bottom:8px;'>Weight Breakdown by Zone</div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-weight:700; margin-bottom:8px;'>Weight Breakdown by Destination Zone</div>", unsafe_allow_html=True)
                 fig_zone_wt = px.bar(
                     zone_summary,
                     x="Total_Weight",
@@ -515,7 +517,7 @@ if uploaded_file is not None:
                 )
                 fig_zone_wt.update_layout(
                     showlegend=False,
-                    height=280,
+                    height=320,
                     margin=dict(l=0, r=0, t=10, b=0),
                     yaxis={"categoryorder": "total ascending"},
                     paper_bgcolor="rgba(0,0,0,0)",
