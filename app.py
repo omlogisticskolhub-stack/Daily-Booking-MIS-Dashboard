@@ -247,6 +247,10 @@ if uploaded_file is not None:
         None,
     )
 
+    # Clean Zone values to ensure proper grouping without spacing/case issues
+    if zone_col and zone_col in df.columns:
+        df[zone_col] = df[zone_col].astype(str).str.strip().str.upper()
+
     # Date formatting
     df["BOOKING_DATE_OBJ"] = pd.to_datetime(
         df[date_col], dayfirst=True, errors="coerce"
