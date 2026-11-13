@@ -11,7 +11,7 @@ st.set_page_config(
 # ==========================================
 # 🔒 PASSWORD PROTECTION SYSTEM
 # ==========================================
-DASHBOARD_PASSWORD = st.secrets.get("DASHBOARD_PASSWORD", "Dhiraj@01072026")
+DASHBOARD_PASSWORD = st.secrets.get("DASHBOARD_PASSWORD", "123456")
 
 
 def check_password():
